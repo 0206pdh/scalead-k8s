@@ -5,6 +5,9 @@ on:
     tags:
       - "v*"   # v0.1.0, v1.2.3 등
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   # ── 1. 검증 ─────────────────────────────────────────────────────────────
   validate:
