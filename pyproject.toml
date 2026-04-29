@@ -4,7 +4,7 @@ build-backend = "setuptools.backends.legacy:build"
 
 [project]
 name = "autoscaling-advisor"
-version = "0.1.0"
+version = "0.1.1"
 description = "K8s 오토스케일링 정책 정적 분석 CLI — Helm values 또는 k8s 매니페스트를 읽어 HPA/KEDA 전략을 추천한다"
 readme = "README.md"
 license = { text = "MIT" }
