@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "autoscaling-advisor"
+version = "0.1.0"
+description = "K8s 오토스케일링 정책 정적 분석 CLI — Helm values 또는 k8s 매니페스트를 읽어 HPA/KEDA 전략을 추천한다"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+keywords = ["kubernetes", "hpa", "keda", "autoscaling", "cli", "devops"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Topic :: System :: Systems Administration",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "PyYAML>=6.0,<7",
+    "click>=8.0",
+    "rich>=13.0",
+]
+
+[project.scripts]
+scalead = "autoscaling_advisor.cli:main"
+
+[project.urls]
+Repository = "https://github.com/0206pdh/scalead-k8s"
+Issues = "https://github.com/0206pdh/scalead-k8s/issues"
+
+[tool.setuptools.packages.find]
+include = ["autoscaling_advisor*"]

@@ -1,0 +1,135 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"   # v0.1.0, v1.2.3 등
+
+jobs:
+  # ── 1. 검증 ─────────────────────────────────────────────────────────────
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install package
+        run: pip install -e .
+
+      - name: Smoke test
+        run: |
+          scalead --help
+          cat > /tmp/test.yaml << 'EOF'
+          hpa:
+            enabled: true
+            minReplicas: 2
+            maxReplicas: 6
+            targetCPUUtilizationPercentage: 70
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+          deployment:
+            readinessProbe:
+              initialDelaySeconds: 3
+              periodSeconds: 5
+            preStopSleepSeconds: 10
+            terminationGracePeriodSeconds: 30
+          app:
+            startupDelaySeconds: 8
+          pdb:
+            enabled: true
+            minAvailable: 1
+          EOF
+          scalead /tmp/test.yaml --format json | python -c "import json,sys; d=json.load(sys.stdin); assert d['best']['score'] > 0; print('OK')"
+
+  # ── 2. 빌드 ─────────────────────────────────────────────────────────────
+  build:
+    needs: validate
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify pyproject.toml version matches tag
+        run: |
+          TAG="${{ steps.version.outputs.version }}"
+          PKG=$(python - <<'EOF'
+          import re, pathlib
+          m = re.search(r'^version\s*=\s*"([^"]+)"', pathlib.Path("pyproject.toml").read_text(), re.MULTILINE)
+          print(m.group(1) if m else "")
+          EOF
+          )
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::태그 버전($TAG) ≠ pyproject.toml 버전($PKG)"
+            exit 1
+          fi
+          echo "버전 일치: $TAG"
+
+      - name: Install build
+        run: pip install build
+
+      - name: Build
+        run: python -m build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  # ── 3. PyPI 배포 ─────────────────────────────────────────────────────────
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write   # PyPI Trusted Publisher (OIDC)
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  # ── 4. GitHub Release ────────────────────────────────────────────────────
+  github-release:
+    needs: [build, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: "v${{ needs.build.outputs.version }}"
+          body: |
+            ## 설치
+
+            ```bash
+            pip install autoscaling-advisor==${{ needs.build.outputs.version }}
+            ```
+
+            또는 항상 최신:
+
+            ```bash
+            pip install autoscaling-advisor
+            ```
+          files: dist/*
+          generate_release_notes: true

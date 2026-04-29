@@ -1,0 +1,64 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package
+        run: pip install -e .
+
+      - name: Compile sources
+        run: python -m compileall autoscaling_advisor
+
+      - name: Smoke test — help
+        run: scalead --help
+
+      - name: Smoke test — scan sample values
+        run: |
+          cat > /tmp/values.yaml << 'EOF'
+          hpa:
+            enabled: true
+            minReplicas: 2
+            maxReplicas: 6
+            targetCPUUtilizationPercentage: 70
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+          deployment:
+            readinessProbe:
+              initialDelaySeconds: 3
+              periodSeconds: 5
+            livenessProbe:
+              initialDelaySeconds: 10
+              periodSeconds: 10
+            preStopSleepSeconds: 10
+            terminationGracePeriodSeconds: 30
+          app:
+            startupDelaySeconds: 8
+            shutdownDrainSeconds: 12
+          pdb:
+            enabled: true
+            minAvailable: 1
+          serviceMonitor:
+            enabled: false
+          EOF
+          scalead /tmp/values.yaml --format json | python -c "import json,sys; d=json.load(sys.stdin); assert d['best']['score'] > 0"
