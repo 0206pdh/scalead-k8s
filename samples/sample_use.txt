@@ -1,0 +1,37 @@
+각 시나리오 실행:
+
+  # 1. 잘 설정된 서비스 → basic-hpa 1위, audit 대부분 ok
+  scalead values-ideal.yaml
+
+  # 2. HPA 있지만 느슨한 설정 → tuned-hpa 1위, change 제안 다수
+  scalead values-tuning-needed.yaml
+
+  # 3. HPA 꺼진 서비스 → 전 전략 저점, HPA error
+  scalead values-no-hpa.yaml
+
+  # 4. CPU request 없이 HPA 활성화 → "HPA CPU 메트릭 동작 안 함" 에러
+  scalead values-resource-poor.yaml
+
+  # 5. Graceful shutdown 타이밍 문제 → preStop+drain≥grace warn, scale range ×20 warn
+  scalead values-shutdown-risk.yaml
+
+  # 6. K8s 네이티브 매니페스트 디렉토리 (Deployment + HPA + PDB)
+  scalead k8s-demo/
+
+--source 전후 비교 테스트:                                                            
+                                                                                      
+  # ── CPU-heavy: --source 전후로 basic-hpa 점수 변화 확인                              
+  scalead values-cpu-heavy.yaml                                                         
+  scalead values-cpu-heavy.yaml --source apps/cpu-heavy/
+
+  # ── Metrics API: --source 없으면 tuned-hpa, 추가하면 KEDA로 역전
+  scalead values-metrics-api.yaml
+  scalead values-metrics-api.yaml --source apps/api-with-metrics/
+
+  # ── Kafka Consumer: --source 추가 시 KEDA 100점 (상한 클램프)
+  scalead values-kafka-consumer.yaml
+  scalead values-kafka-consumer.yaml --source apps/kafka-consumer/
+
+  # ── Celery Worker: 같은 values, 다른 소스코드로 동일하게 KEDA 압도
+  scalead values-kafka-consumer.yaml --source apps/celery-worker/
+
