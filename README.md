@@ -307,6 +307,29 @@ autoscaling_advisor/
 - **KEDA ScaledObject를 생성하지 않는다.** KEDA 전략 추천 시 `ScaledObject` 작성은 별도 작업이다.
 - **점수는 휴리스틱이다.** 실서비스 도입 전에는 부하 테스트와 병행해야 한다.
 
+### Tuned HPA 추천은 예측이 아니라 방어적 가정이다
+
+Tuned HPA가 "minReplicas를 올리세요", "CPU target을 낮추세요" 라고 제안할 때,  
+이 도구는 **실제로 스파이크가 올지 알지 못한다.**
+
+도구가 실제로 하는 것:
+> "이 설정은 스파이크가 왔을 때 대응이 느린 구조다" — 설정의 취약성을 탐지
+
+도구가 하지 못하는 것:
+> "스파이크가 올 것이다" — 트래픽 패턴 예측
+
+따라서 Tuned HPA 제안을 그대로 따르기 전에 실제 메트릭을 확인해야 한다.
+
+| Prometheus/Grafana에서 확인할 지표 | 판단 기준 |
+|---|---|
+| CPU 사용률 p95 | 70% 근처면 target 낮추는 게 유효 |
+| HPA scale-out 이벤트 빈도 | 자주 발생하면 minReplicas 올릴 필요 있음 |
+| Pod Ready 소요 시간 실측값 | 실측 > 30s면 startupDelay 단축이 효과적 |
+| 트래픽 시간대별 분포 | 항상 steady하면 minReplicas 보수적으로 유지해도 됨 |
+
+메트릭 상 CPU가 항상 20~40%라면 target을 낮출 이유가 없다.  
+반대로 p95가 78%라면 target 조정이 실질적인 효과를 낸다.
+
 ---
 
 ## 릴리즈
