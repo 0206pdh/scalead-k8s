@@ -1,0 +1,33 @@
+# 시나리오: HPA 미설정 (모든 전략 저점, 에러 감사)
+# 기대 결과: 전 전략 낮은 점수, HPA error 감사 항목
+
+hpa:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+
+deployment:
+  readinessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 5
+  livenessProbe:
+    initialDelaySeconds: 15
+    periodSeconds: 15
+  preStopSleepSeconds: 10
+  terminationGracePeriodSeconds: 30
+
+app:
+  startupDelaySeconds: 3
+  shutdownDrainSeconds: 5
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+replicaCount: 2

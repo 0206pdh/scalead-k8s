@@ -1,0 +1,30 @@
+# 시나리오: Graceful shutdown 타이밍 문제
+# preStop(25s) + drain(10s) = 35s >= grace(30s) → SIGKILL이 drain 전에 발생
+# 기대 결과: "Graceful Shutdown warn" 감사 항목, scale range warn (1→20, ×20)
+
+hpa:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 75
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+deployment:
+  readinessProbe:
+    initialDelaySeconds: 3
+    periodSeconds: 5
+  preStopSleepSeconds: 25
+  terminationGracePeriodSeconds: 30
+
+app:
+  startupDelaySeconds: 3
+  shutdownDrainSeconds: 10
+
+pdb:
+  enabled: false
+
+replicaCount: 1

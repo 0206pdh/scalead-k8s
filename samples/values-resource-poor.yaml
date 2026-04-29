@@ -1,0 +1,32 @@
+# 시나리오: CPU request 없이 HPA 활성화 (HPA 동작 안 함)
+# 기대 결과: "CPU request 없음 — HPA CPU 메트릭 동작 안 함" 에러
+#            basic-hpa 점수 낮음, KEDA 제안 가능성
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
+resources:
+  requests:
+    memory: 256Mi
+  limits:
+    memory: 512Mi
+  # cpu request/limit 의도적으로 누락
+
+deployment:
+  readinessProbe:
+    initialDelaySeconds: 3
+    periodSeconds: 5
+  preStopSleepSeconds: 5
+  terminationGracePeriodSeconds: 30
+
+app:
+  startupDelaySeconds: 4
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+replicaCount: 2
