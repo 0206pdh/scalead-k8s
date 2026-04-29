@@ -1,0 +1,48 @@
+# Kafka Consumer / Celery Worker 공용 Helm values
+# --source 없이: YAML만으로는 신호 부족, tuned-hpa 우세
+# --source 추가: KEDA 만점(100) — kafka + queue_depth + lag + consumer + prometheus 전부 감지
+#
+# 검증 명령 (Kafka):
+#   scalead samples/values-kafka-consumer.yaml
+#   scalead samples/values-kafka-consumer.yaml --source samples/apps/kafka-consumer/
+#
+# 검증 명령 (Celery):
+#   scalead samples/values-kafka-consumer.yaml --source samples/apps/celery-worker/
+
+hpa:
+  enabled: false   # KEDA ScaledObject가 HPA를 대체
+
+keda:
+  enabled: true
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+deployment:
+  readinessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 5
+  livenessProbe:
+    initialDelaySeconds: 15
+    periodSeconds: 15
+  preStopSleepSeconds: 10   # 메시지 처리 완료 후 종료
+  terminationGracePeriodSeconds: 40
+
+app:
+  startupDelaySeconds: 4
+  shutdownDrainSeconds: 15   # 처리 중인 메시지 마무리
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+serviceMonitor:
+  enabled: true
+  path: /metrics
+
+replicaCount: 1

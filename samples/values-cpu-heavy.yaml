@@ -1,0 +1,43 @@
+# 암호화 API 서버용 Helm values
+# --source 없이도 basic-hpa 우세, --source 추가 시 is_cpu_heavy 감지로 점수 더 상승
+#
+# 검증 명령:
+#   scalead samples/values-cpu-heavy.yaml
+#   scalead samples/values-cpu-heavy.yaml --source samples/apps/cpu-heavy/
+
+hpa:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 12
+  targetCPUUtilizationPercentage: 65
+
+resources:
+  requests:
+    cpu: 500m       # bcrypt/pbkdf2 연산은 CPU 집약적이므로 넉넉히 요청
+    memory: 256Mi
+  limits:
+    cpu: 2000m
+    memory: 512Mi
+
+deployment:
+  readinessProbe:
+    initialDelaySeconds: 3
+    periodSeconds: 3
+  livenessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  preStopSleepSeconds: 5
+  terminationGracePeriodSeconds: 20
+
+app:
+  startupDelaySeconds: 2
+  shutdownDrainSeconds: 3
+
+pdb:
+  enabled: true
+  minAvailable: 2
+
+serviceMonitor:
+  enabled: false   # Prometheus 메트릭 없음 → KEDA 비적합
+
+replicaCount: 3

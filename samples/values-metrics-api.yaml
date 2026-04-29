@@ -1,0 +1,48 @@
+# Prometheus 메트릭 노출 REST API용 Helm values
+# --source 없이: tuned-hpa 우세 (KEDA 메트릭 신호 미감지)
+# --source 추가: KEDA로 역전 (exposes_metrics, uses_prometheus, has_request_metric 감지)
+#
+# 검증 명령:
+#   scalead samples/values-metrics-api.yaml
+#   scalead samples/values-metrics-api.yaml --source samples/apps/api-with-metrics/
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+keda:
+  enabled: true   # KEDA CRD 이미 클러스터에 설치됨
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 800m
+    memory: 512Mi
+
+deployment:
+  readinessProbe:
+    initialDelaySeconds: 3
+    periodSeconds: 5
+  livenessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  preStopSleepSeconds: 5
+  terminationGracePeriodSeconds: 30
+
+app:
+  startupDelaySeconds: 2
+  shutdownDrainSeconds: 3
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+serviceMonitor:
+  enabled: true    # /metrics 엔드포인트 Prometheus 스크래핑
+  path: /metrics
+
+replicaCount: 2
