@@ -17,6 +17,8 @@ from .renderer import render
 from .scanner import enrich_with_source, scan_helm_values, scan_k8s_dir
 
 
+# CLI entrypoint registered as the `scalead` command in pyproject.toml.
+# This module only wires together scanning, recommendation, and rendering.
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.argument("target", metavar="TARGET")
 @click.option(
@@ -53,8 +55,10 @@ def main(target: str, source: str | None, fmt: str) -> None:
 
     try:
         if p.is_dir():
+            # Manifest mode: scan a directory of Kubernetes YAML resources.
             scan = scan_k8s_dir(target)
         else:
+            # Helm mode: scan one values.yaml file.
             scan = scan_helm_values(target)
     except Exception as exc:
         console.print(f"[red]스캔 실패:[/red] {exc}")
@@ -67,6 +71,8 @@ def main(target: str, source: str | None, fmt: str) -> None:
         else:
             enrich_with_source(source, scan)
 
+    # Recommendation rules are isolated in engine.py so they can evolve
+    # without changing how inputs are parsed.
     result = recommend(scan)
 
     if fmt == "json":

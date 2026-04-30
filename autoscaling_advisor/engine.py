@@ -9,6 +9,7 @@ def _clamp(v: int) -> int:
 
 
 def _score_basic_hpa(s: ScanResult) -> StrategyCandidate:
+    # Baseline option for straightforward CPU-driven workloads.
     score = 50
     reasons: list[str] = []
     risks: list[str] = []
@@ -56,6 +57,8 @@ def _score_basic_hpa(s: ScanResult) -> StrategyCandidate:
 
 
 def _score_tuned_hpa(s: ScanResult) -> StrategyCandidate:
+    # Intermediate option for services that still fit HPA but need earlier
+    # scale-out and more headroom through parameter tuning.
     score = 55
     reasons: list[str] = []
     risks: list[str] = []
@@ -126,6 +129,8 @@ def _score_tuned_hpa(s: ScanResult) -> StrategyCandidate:
 
 
 def _score_keda(s: ScanResult) -> StrategyCandidate:
+    # External-metric option for queue workers or services that expose better
+    # leading indicators than raw CPU utilization.
     score = 35
     reasons: list[str] = []
     risks: list[str] = []
@@ -177,6 +182,7 @@ def _score_keda(s: ScanResult) -> StrategyCandidate:
 
 
 def recommend(scan: ScanResult) -> RecommendationResult:
+    # Score every strategy, rank them, and bundle the audit output used by the renderer.
     candidates = sorted(
         [_score_basic_hpa(scan), _score_tuned_hpa(scan), _score_keda(scan)],
         key=lambda c: c.score,

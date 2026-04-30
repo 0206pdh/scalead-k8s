@@ -22,6 +22,8 @@ _SKIP_DIRS = {".git", "__pycache__", ".venv", "venv", "node_modules", "dist", "b
 
 
 def scan_helm_values(path: str) -> ScanResult:
+    # Extract only the values keys the scoring model understands and normalize
+    # them into the common ScanResult schema.
     with open(path, encoding="utf-8") as f:
         v = yaml.safe_load(f) or {}
 
@@ -81,6 +83,8 @@ def scan_helm_values(path: str) -> ScanResult:
 
 
 def scan_k8s_dir(path: str) -> ScanResult:
+    # Aggregate multiple manifest files into one ScanResult so downstream
+    # audit/scoring logic stays input-format agnostic.
     result = ScanResult(source=path)
 
     for yaml_file in Path(path).glob("*.yaml"):
@@ -99,6 +103,7 @@ def scan_k8s_dir(path: str) -> ScanResult:
 
 
 def _parse_k8s_doc(doc: dict, result: ScanResult) -> None:
+    # Map supported Kubernetes kinds into the same fields used by Helm scanning.
     kind = doc.get("kind", "")
 
     if kind == "HorizontalPodAutoscaler":
@@ -142,6 +147,8 @@ def _parse_k8s_doc(doc: dict, result: ScanResult) -> None:
 
 
 def _parse_container(c: dict, result: ScanResult) -> None:
+    # Current implementation assumes the first container is representative.
+    # That keeps the model simple for single-container sample apps.
     res = c.get("resources", {})
     req = res.get("requests", {})
     lim = res.get("limits", {})
@@ -173,7 +180,11 @@ def _parse_container(c: dict, result: ScanResult) -> None:
 
 
 def enrich_with_source(app_dir: str, result: ScanResult) -> None:
-    """Static-analyze app source code and populate result.signals."""
+    """Static-analyze app source code and populate result.signals.
+
+    This is heuristic keyword matching, not AST-level analysis. The goal is
+    lightweight workload classification across multiple languages.
+    """
     content_parts: list[str] = []
     for root, dirs, files in os.walk(app_dir):
         dirs[:] = [d for d in dirs if d not in _SKIP_DIRS]
@@ -186,6 +197,7 @@ def enrich_with_source(app_dir: str, result: ScanResult) -> None:
 
     text = "\n".join(content_parts).lower()
 
+    # Only populate boolean hints here. Actual strategy scoring stays in engine.py.
     result.signals = AppSignals(
         exposes_metrics="/metrics" in text or "prometheus" in text,
         uses_prometheus=any(k in text for k in ["prometheus_client", "prom-client", "promclient"]),
